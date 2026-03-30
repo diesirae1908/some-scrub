@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Eye, Heart, MessageCircle, Share2 } from "lucide-react";
 import type { TikTokVideo } from "@/types";
 import { formatNumber, formatDate } from "@/lib/utils";
@@ -24,12 +23,11 @@ export default function VideoCard({ video, onClick, bookmarked }: VideoCardProps
       {/* Thumbnail */}
       <div className="relative aspect-[9/16] max-h-52 w-full bg-black overflow-hidden">
         {video.cover ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={video.cover}
             alt={video.title}
-            fill
-            className="object-cover"
-            unoptimized
+            className="object-cover w-full h-full"
           />
         ) : (
           <div

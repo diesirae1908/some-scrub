@@ -47,7 +47,7 @@ export default function HomePage() {
     setError(null);
 
     try {
-      const videos = await searchTikTok(keyword.trim(), count, dateRange);
+      const videos = await searchTikTok(keyword.trim(), count);
 
       // Store results in sessionStorage for results page
       sessionStorage.setItem(

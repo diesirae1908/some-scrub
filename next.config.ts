@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   output: "export",
   basePath: isProd ? "/some-scrub" : "",
   images: {
-    unoptimized: true, // required for static export
+    unoptimized: true,
   },
 };
 

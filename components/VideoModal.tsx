@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import {
   X,
   ExternalLink,
@@ -136,7 +135,8 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
               {/* Thumbnail */}
               <div className="relative w-28 h-36 rounded-xl overflow-hidden flex-shrink-0 bg-black">
                 {video.cover ? (
-                  <Image src={video.cover} alt={video.title} fill className="object-cover" unoptimized />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={video.cover} alt={video.title} className="object-cover w-full h-full" />
                 ) : (
                   <div className="w-full h-full" style={{ background: "var(--bg-input)" }} />
                 )}

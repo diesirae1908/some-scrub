@@ -3,14 +3,18 @@
 import type { TikTokVideo } from "@/types";
 import { extractHashtags } from "@/lib/utils";
 
-// CORS proxy to allow browser-side calls to tikwm.com
-const PROXY = "https://corsproxy.io/?url=";
-const TIKWM_BASE = "https://www.tikwm.com/api";
+const TIKWM_BASE = "https://www.tikwm.com";
+const PROXY = "https://api.allorigins.win/raw?url=";
+
+function absoluteUrl(path: string): string {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${TIKWM_BASE}${path}`;
+}
 
 export async function searchTikTok(
   keyword: string,
   count: number,
-  dateRange: string
 ): Promise<TikTokVideo[]> {
   const params = new URLSearchParams({
     keywords: keyword.trim(),
@@ -20,50 +24,45 @@ export async function searchTikTok(
     hd: "1",
   });
 
-  const url = `${TIKWM_BASE}/feed/search?${params}`;
+  const targetUrl = `${TIKWM_BASE}/api/feed/search?${params}`;
+  const proxyUrl = `${PROXY}${encodeURIComponent(targetUrl)}`;
 
-  const response = await fetch(`${PROXY}${encodeURIComponent(url)}`, {
-    headers: { "x-requested-with": "XMLHttpRequest" },
-  });
+  const response = await fetch(proxyUrl);
 
   if (!response.ok) {
-    throw new Error(`TikTok API responded with ${response.status}`);
+    throw new Error(`Failed to fetch TikTok data (${response.status})`);
   }
 
   const data = await response.json();
 
-  if (!data?.data?.videos) {
+  if (!data?.data?.videos?.length) {
     return [];
   }
 
-  const cutoff = Math.floor(Date.now() / 1000) - parseInt(dateRange) * 86400;
-
-  return data.data.videos
-    .filter((v: RawVideo) => (v.create_time ?? 0) >= cutoff)
-    .map(
-      (v: RawVideo): TikTokVideo => ({
-        id: v.video_id ?? v.id ?? "",
-        title: v.title || v.desc || "",
-        cover: v.cover || v.origin_cover || "",
-        play: v.play || "",
-        author: {
-          id: v.author?.id || "",
-          uniqueId: v.author?.unique_id || v.author?.uniqueId || "",
-          nickname: v.author?.nickname || "",
-          avatarThumb: v.author?.avatar || v.author?.avatarThumb || "",
-        },
-        stats: {
-          playCount: v.play_count || v.statistics?.playCount || 0,
-          diggCount: v.digg_count || v.statistics?.diggCount || 0,
-          commentCount: v.comment_count || v.statistics?.commentCount || 0,
-          shareCount: v.share_count || v.statistics?.shareCount || 0,
-        },
-        createTime: v.create_time ?? 0,
-        hashtags: extractHashtags(v.title || v.desc || ""),
-        duration: v.duration || 0,
-        webVideoUrl: `https://www.tiktok.com/@${v.author?.unique_id ?? ""}/video/${v.video_id ?? v.id ?? ""}`,
-      })
-    );
+  return data.data.videos.map(
+    (v: RawVideo): TikTokVideo => ({
+      id: v.video_id ?? v.id ?? "",
+      title: v.title || v.desc || "",
+      cover: absoluteUrl(v.cover || v.origin_cover || ""),
+      play: absoluteUrl(v.play || ""),
+      author: {
+        id: v.author?.id || "",
+        uniqueId: v.author?.unique_id || v.author?.uniqueId || "",
+        nickname: v.author?.nickname || "",
+        avatarThumb: absoluteUrl(v.author?.avatar || v.author?.avatarThumb || ""),
+      },
+      stats: {
+        playCount: v.play_count || v.statistics?.playCount || 0,
+        diggCount: v.digg_count || v.statistics?.diggCount || 0,
+        commentCount: v.comment_count || v.statistics?.commentCount || 0,
+        shareCount: v.share_count || v.statistics?.shareCount || 0,
+      },
+      createTime: v.create_time ?? 0,
+      hashtags: extractHashtags(v.title || v.desc || ""),
+      duration: v.duration || 0,
+      webVideoUrl: `https://www.tiktok.com/@${v.author?.unique_id ?? ""}/video/${v.video_id ?? v.id ?? ""}`,
+    })
+  );
 }
 
 interface RawVideo {
