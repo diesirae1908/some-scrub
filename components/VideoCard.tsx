@@ -1,8 +1,9 @@
 "use client";
 
-import { Eye, Heart, MessageCircle, Share2 } from "lucide-react";
+import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { TikTokVideo } from "@/types";
 import { formatNumber, formatDate } from "@/lib/utils";
+import LazyThumbnail from "./LazyThumbnail";
 
 interface VideoCardProps {
   video: TikTokVideo;
@@ -21,39 +22,18 @@ export default function VideoCard({ video, onClick, bookmarked }: VideoCardProps
       }}
     >
       {/* Thumbnail */}
-      <div className="relative aspect-[9/16] max-h-52 w-full bg-black overflow-hidden">
-        {video.cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={video.cover}
-            alt={video.title}
-            className="object-cover w-full h-full"
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: "var(--bg-input)" }}
-          >
-            <span style={{ color: "var(--text-muted)" }} className="text-xs">
-              No preview
-            </span>
-          </div>
-        )}
-
-        {/* Duration badge */}
-        {video.duration > 0 && (
-          <span
-            className="absolute bottom-2 right-2 text-xs px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(0,0,0,0.7)", color: "var(--text-primary)" }}
-          >
-            {video.duration}s
-          </span>
-        )}
+      <div className="relative w-full overflow-hidden" style={{ height: "200px" }}>
+        <LazyThumbnail
+          videoId={video.id}
+          authorId={video.author.uniqueId}
+          alt={video.title}
+          duration={video.duration}
+        />
 
         {/* Bookmarked indicator */}
         {bookmarked && (
           <div
-            className="absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center"
+            className="absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center z-10"
             style={{ background: "var(--accent-teal)" }}
           >
             <span className="text-xs font-bold text-black">✓</span>
