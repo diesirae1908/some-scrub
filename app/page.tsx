@@ -1,65 +1,240 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Loader2, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import { getSessions } from "@/lib/storage";
+import { searchTikTok } from "@/lib/tiktok-client";
+import type { SearchSession } from "@/types";
+
+const DATE_OPTIONS = [
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last 90 days" },
+  { value: "180", label: "Last 6 months" },
+];
+
+const COUNT_OPTIONS = [
+  { value: 5, label: "5 videos" },
+  { value: 10, label: "10 videos" },
+  { value: 20, label: "20 videos" },
+  { value: 30, label: "30 videos" },
+  { value: 50, label: "50 videos" },
+];
+
+const SUGGESTED = [
+  "french bakery", "croissant recipe", "sourdough bread", "bakery aesthetic",
+  "morning pastry", "artisan bread", "pain au chocolat", "viennoiserie",
+];
+
+export default function HomePage() {
+  const router = useRouter();
+  const [keyword, setKeyword] = useState("");
+  const [dateRange, setDateRange] = useState("30");
+  const [count, setCount] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SearchSession[]>([]);
+
+  useEffect(() => {
+    setSessions(getSessions());
+  }, []);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keyword.trim()) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const videos = await searchTikTok(keyword.trim(), count, dateRange);
+
+      // Store results in sessionStorage for results page
+      sessionStorage.setItem(
+        "search_results",
+        JSON.stringify({ keyword: keyword.trim(), dateRange, videos })
+      );
+      router.push(`/results?q=${encodeURIComponent(keyword.trim())}&range=${dateRange}`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-10">
+      {/* Hero */}
+      <div className="text-center space-y-3">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold"
+            style={{ background: "linear-gradient(135deg, #ff3b6b, #9b5de5)" }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            S
+          </div>
         </div>
-      </main>
+        <h1 className="text-3xl font-bold tracking-tight">
+          TikTok Trend Research
+        </h1>
+        <p style={{ color: "var(--text-secondary)" }} className="text-base max-w-md mx-auto">
+          Find trending videos, analyze hooks, and generate creative briefs — in seconds.
+        </p>
+      </div>
+
+      {/* Search card */}
+      <form
+        onSubmit={handleSearch}
+        className="w-full max-w-2xl rounded-2xl p-6 space-y-5"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+      >
+        {/* Keyword input */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Search Keyword
+          </label>
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="e.g. french bakery, croissant, sourdough..."
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
+            style={{
+              background: "var(--bg-input)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--accent-purple)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          {/* Suggested keywords */}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {SUGGESTED.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setKeyword(s)}
+                className="text-xs px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
+                style={{
+                  background: "var(--bg-input)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Date + Count */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              Date Range
+            </label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none cursor-pointer"
+              style={{
+                background: "var(--bg-input)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }}
+            >
+              {DATE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              Number of Results
+            </label>
+            <select
+              value={count}
+              onChange={(e) => setCount(parseInt(e.target.value))}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none cursor-pointer"
+              style={{
+                background: "var(--bg-input)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }}
+            >
+              {COUNT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div
+            className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm"
+            style={{ background: "rgba(255,59,107,0.1)", color: "var(--accent-pink)", border: "1px solid rgba(255,59,107,0.3)" }}
+          >
+            <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading || !keyword.trim()}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: "linear-gradient(135deg, #ff3b6b, #9b5de5)", color: "#fff" }}
+        >
+          {loading ? (
+            <>
+              <Loader2 size={16} className="spinner" />
+              Scraping TikTok for trending videos...
+            </>
+          ) : (
+            <>
+              <Search size={16} />
+              Search TikTok
+            </>
+          )}
+        </button>
+      </form>
+
+      {/* Recent sessions */}
+      {sessions.length > 0 && (
+        <div className="w-full max-w-2xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock size={14} style={{ color: "var(--text-muted)" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+              Recent Searches
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {sessions.slice(0, 6).map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setKeyword(s.keyword)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors hover:opacity-80"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+              >
+                <TrendingUp size={11} />
+                {s.keyword}
+                <span style={{ color: "var(--text-muted)" }}>· {s.videos.length} videos</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

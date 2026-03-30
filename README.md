@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoMe Scrub — TikTok Trend Research Tool
+
+Research TikTok trends, analyze video hooks with Claude AI, and generate creative briefs tailored to Atome Bakery's brand.
+
+## Features
+
+- **Search** TikTok by keyword, hashtag, or account name
+- **Filter** by date range and number of results
+- **Results dashboard** with aggregate stats (total views, likes, avg engagement)
+- **Video detail modal** with full metrics + TikTok link
+- **AI Analysis** powered by Claude — analyzes hook type, theme, funnel stage, and comment insights
+- **Generate Creative Brief** — one click to get a brief tailored to Atome's brand
+- **Bookmarks** — save videos for later analysis
+- **Export CSV** — export search results to spreadsheet
+- **Brand Profile** — configure Atome's brand bible, tone of voice, and brief template
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+
+The `.env.local` file already contains your Anthropic API key. Do not share or commit this file.
+
+### 3. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## First-Time Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Go to **Brand Profile** (top nav) and fill in Atome Bakery's details:
+   - Product description, target audience, brand values, tone of voice
+   - Brand Bible (paste full brand guidelines)
+   - Brief template (customize the structure of generated briefs)
+   - Competitor TikTok accounts to track
 
-## Learn More
+2. Search for keywords like `french bakery`, `croissant`, `artisan bread`, etc.
 
-To learn more about Next.js, take a look at the following resources:
+3. Click any video to see details, then click **Analyze Now** to get AI insights.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Click **Generate Brief** to produce a creative brief tailored to Atome.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tech Stack
 
-## Deploy on Vercel
+- **Next.js 14** (App Router, TypeScript)
+- **Tailwind CSS** (dark theme)
+- **Anthropic Claude** (claude-opus-4-5) for AI analysis and brief generation
+- **tikwm.com** free API for TikTok data (no API key needed)
+- **localStorage** for persisting bookmarks, sessions, and brand profile
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Data & Privacy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- All data is stored locally in your browser (localStorage)
+- No database or backend storage
+- TikTok data is fetched in real-time via the tikwm.com public API
