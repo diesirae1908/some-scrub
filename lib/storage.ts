@@ -9,14 +9,21 @@ const KEYS = {
   API_KEY: "atome_anthropic_key",
 };
 
-// API Key
+// API Key — prefers build-time env var, falls back to localStorage
 export function getApiKey(): string {
+  // Injected at build time via GitHub Actions secret
+  const envKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+  if (envKey) return envKey;
   if (typeof window === "undefined") return "";
   return localStorage.getItem(KEYS.API_KEY) || "";
 }
 
 export function saveApiKey(key: string): void {
   localStorage.setItem(KEYS.API_KEY, key);
+}
+
+export function hasEnvApiKey(): boolean {
+  return !!process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
 }
 
 // Brand Profile
