@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, Clock, TrendingUp, AlertCircle } from "lucide-react";
 import { getSessions } from "@/lib/storage";
-import { searchTikTok } from "@/lib/tiktok-client";
 import type { SearchSession } from "@/types";
 
 const DATE_OPTIONS = [
@@ -47,7 +46,14 @@ export default function HomePage() {
     setError(null);
 
     try {
-      const videos = await searchTikTok(keyword.trim(), count);
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword: keyword.trim(), count }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const videos = data.videos;
 
       // Store results in sessionStorage for results page
       sessionStorage.setItem(

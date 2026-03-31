@@ -22,9 +22,7 @@ import {
   isBookmarked,
   updateBookmarkAnalysis,
   getBrandProfile,
-  getApiKey,
 } from "@/lib/storage";
-import { analyzeVideo, generateBrief } from "@/lib/claude-client";
 import BriefModal from "./BriefModal";
 
 interface VideoModalProps {
@@ -65,17 +63,18 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
   };
 
   const handleAnalyze = async () => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      alert("Please add your Anthropic API key in Brand Profile first.");
-      return;
-    }
     setAnalyzing(true);
     setAnalysisError(null);
     try {
-      const result = await analyzeVideo(video, apiKey, brandProfile ?? undefined);
-      setAnalysis(result);
-      updateBookmarkAnalysis(video.id, { analysis: result });
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video, brandProfile }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAnalysis(data.analysis);
+      updateBookmarkAnalysis(video.id, { analysis: data.analysis });
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
@@ -84,21 +83,22 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
   };
 
   const handleGenerateBrief = async () => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      alert("Please add your Anthropic API key in Brand Profile first.");
-      return;
-    }
     if (!brandProfile?.brandName) {
       alert("Please set up your Brand Profile first (top nav → Brand Profile)");
       return;
     }
     setGeneratingBrief(true);
     try {
-      const result = await generateBrief(video, apiKey, brandProfile, analysis ?? undefined);
-      setBrief(result);
+      const res = await fetch("/api/brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video, analysis, brandProfile }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setBrief(data.brief);
       setShowBrief(true);
-      updateBookmarkAnalysis(video.id, { brief: result });
+      updateBookmarkAnalysis(video.id, { brief: data.brief });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to generate brief");
     } finally {

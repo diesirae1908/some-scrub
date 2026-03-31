@@ -165,7 +165,7 @@ Reference Video: ${video.webVideoUrl}
             </button>
             {savedId && (
               <a
-                href={`/some-scrub/briefs`}
+                href={`/briefs`}
                 className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-colors hover:opacity-90"
                 style={{ background: "var(--bg-input)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
               >

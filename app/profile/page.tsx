@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, CheckCircle, Globe, AtSign, Video, AlertCircle, Key, ShieldCheck } from "lucide-react";
+import { Save, CheckCircle, Globe, AtSign, Video, AlertCircle, ShieldCheck } from "lucide-react";
 import type { BrandProfile } from "@/types";
-import { getBrandProfile, saveBrandProfile, getApiKey, saveApiKey, hasEnvApiKey } from "@/lib/storage";
+import { getBrandProfile, saveBrandProfile } from "@/lib/storage";
 
 const DEFAULT_BRIEF_TEMPLATE = `Campaign Name:
 Objective:
@@ -45,14 +45,12 @@ const EMPTY_PROFILE: BrandProfile = {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<BrandProfile>(EMPTY_PROFILE);
-  const [apiKey, setApiKeyState] = useState("");
   const [saved, setSaved] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     const existing = getBrandProfile();
     if (existing) setProfile(existing);
-    setApiKeyState(getApiKey());
   }, []);
 
   const update = (key: keyof BrandProfile, value: string) => {
@@ -63,7 +61,6 @@ export default function ProfilePage() {
 
   const handleSave = () => {
     saveBrandProfile(profile);
-    if (apiKey.trim()) saveApiKey(apiKey.trim());
     setSaved(true);
     setHasChanges(false);
     setTimeout(() => setSaved(false), 3000);
@@ -107,55 +104,20 @@ export default function ProfilePage() {
 
       {/* Section: API Key */}
       <Section title="Anthropic API Key">
-        {hasEnvApiKey() ? (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(0,212,160,0.08)", border: "1px solid rgba(0,212,160,0.25)" }}
-          >
-            <ShieldCheck size={18} style={{ color: "var(--accent-teal)", flexShrink: 0 }} />
-            <div>
-              <p className="text-sm font-medium" style={{ color: "var(--accent-teal)" }}>
-                API key pre-configured
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                Securely stored as a GitHub secret — no action needed.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-              Required for AI analysis and creative brief generation. Stored only in your browser.
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl"
+          style={{ background: "rgba(0,212,160,0.08)", border: "1px solid rgba(0,212,160,0.25)" }}
+        >
+          <ShieldCheck size={18} style={{ color: "var(--accent-teal)", flexShrink: 0 }} />
+          <div>
+            <p className="text-sm font-medium" style={{ color: "var(--accent-teal)" }}>
+              API key secured server-side
             </p>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                API Key
-              </label>
-              <div className="relative">
-                <Key size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => { setApiKeyState(e.target.value); setHasChanges(true); }}
-                  placeholder="sk-ant-api03-..."
-                  className="w-full py-2.5 pr-3 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    background: "var(--bg-input)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-primary)",
-                    paddingLeft: "2rem",
-                    fontFamily: "monospace",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent-purple)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-              </div>
-              {apiKey && (
-                <p className="text-xs" style={{ color: "var(--accent-teal)" }}>✓ API key saved</p>
-              )}
-            </div>
-          </>
-        )}
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              Stored as a Render environment variable — never exposed to the browser.
+            </p>
+          </div>
+        </div>
       </Section>
 
       {/* Section: Basic Info */}
