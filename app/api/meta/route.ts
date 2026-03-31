@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { MetaAnalyticsData, InstagramPost } from "@/types";
 
 const GRAPH = "https://graph.facebook.com/v19.0";
@@ -43,7 +43,7 @@ async function withConcurrency<T, R>(
   return results;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const { pageToken, pageId, igId, tokenExpiry } = cfg();
 
   if (!pageToken || !pageId || !igId) {

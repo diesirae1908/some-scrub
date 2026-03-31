@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Bookmark, Trash2, Search } from "lucide-react";
 import type { BookmarkedVideo } from "@/types";
 import { getBookmarks, removeBookmark } from "@/lib/storage";
@@ -9,13 +9,9 @@ import VideoModal from "@/components/VideoModal";
 import type { TikTokVideo } from "@/types";
 
 export default function BookmarksPage() {
-  const [bookmarks, setBookmarks] = useState<BookmarkedVideo[]>([]);
+  const [bookmarks, setBookmarks] = useState<BookmarkedVideo[]>(() => getBookmarks());
   const [selectedVideo, setSelectedVideo] = useState<TikTokVideo | null>(null);
   const [filter, setFilter] = useState("");
-
-  useEffect(() => {
-    setBookmarks(getBookmarks());
-  }, []);
 
   const handleRemove = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

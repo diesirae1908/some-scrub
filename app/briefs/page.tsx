@@ -266,12 +266,8 @@ function BriefCard({
 }
 
 export default function BriefsPage() {
-  const [briefs, setBriefs] = useState<SavedBrief[]>([]);
+  const [briefs, setBriefs] = useState<SavedBrief[]>(() => getSavedBriefs());
   const [filterStatus, setFilterStatus] = useState<BriefStatus | "all">("all");
-
-  useEffect(() => {
-    setBriefs(getSavedBriefs());
-  }, []);
 
   const handleStatusChange = (id: string, status: BriefStatus, extra?: Partial<SavedBrief>) => {
     updateBriefStatus(id, status, extra);

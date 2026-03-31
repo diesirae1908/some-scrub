@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Save, CheckCircle, Globe, AtSign, Video, AlertCircle, ShieldCheck } from "lucide-react";
 import type { BrandProfile } from "@/types";
 import { getBrandProfile, saveBrandProfile } from "@/lib/storage";
@@ -44,14 +44,9 @@ const EMPTY_PROFILE: BrandProfile = {
 };
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<BrandProfile>(EMPTY_PROFILE);
+  const [profile, setProfile] = useState<BrandProfile>(() => getBrandProfile() ?? EMPTY_PROFILE);
   const [saved, setSaved] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-
-  useEffect(() => {
-    const existing = getBrandProfile();
-    if (existing) setProfile(existing);
-  }, []);
 
   const update = (key: keyof BrandProfile, value: string) => {
     setProfile((p) => ({ ...p, [key]: value }));

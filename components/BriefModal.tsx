@@ -23,6 +23,7 @@ export default function BriefModal({ brief, video, analysis, onClose }: BriefMod
       (b) => b.brief.campaignName === brief.campaignName && b.video.id === video.id
     );
     if (existing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSavedId(existing.id);
       return;
     }
@@ -45,6 +46,7 @@ export default function BriefModal({ brief, video, analysis, onClose }: BriefMod
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSavedId(id);
   }, [brief, video, analysis]);
 

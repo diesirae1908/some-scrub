@@ -33,7 +33,9 @@ function ResultsContent() {
     const raw = sessionStorage.getItem("search_results");
     if (raw) {
       const { videos: v, keyword } = JSON.parse(raw);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVideos(v);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoaded(true);
       // Save session
       saveSession({
