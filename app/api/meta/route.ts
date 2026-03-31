@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { MetaAnalyticsData, InstagramPost } from "@/types";
+import type { MetaAnalyticsData, InstagramPost, InstagramInsightsPrev } from "@/types";
 
 const GRAPH = "https://graph.facebook.com/v19.0";
 
@@ -53,62 +53,166 @@ export async function GET() {
     );
   }
 
-  const since = Math.floor(Date.now() / 1000) - 30 * 86400;
-  const until = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  const since = now - 30 * 86400;
+  const until = now;
+  const prevSince = now - 60 * 86400;
+  const prevUntil = now - 30 * 86400;
 
   try {
-    // ── Instagram Profile ──────────────────────────────────────────────────
-    const igProfile = await gql<{
-      id: string; name: string; username: string;
-      profile_picture_url: string; followers_count: number;
-      follows_count: number; media_count: number; biography: string;
-    }>(igId, pageToken, {
-      fields: "id,name,username,profile_picture_url,followers_count,follows_count,media_count,biography",
-    });
+    // ── Phase 1: all parallel reads ────────────────────────────────────────
+    const [
+      igProfileRes,
+      igDailyRes,
+      igTotalRes,
+      igPrevDailyRes,
+      igPrevTotalRes,
+      igReachBreakRes,
+      postsRes,
+      fbPageRes,
+    ] = await Promise.allSettled([
+      // Profile
+      gql<{
+        id: string; name: string; username: string;
+        profile_picture_url: string; followers_count: number;
+        follows_count: number; media_count: number; biography: string;
+      }>(igId, pageToken, {
+        fields: "id,name,username,profile_picture_url,followers_count,follows_count,media_count,biography",
+      }),
 
-    // ── Instagram daily reach + follower growth ────────────────────────────
-    const igDailyRaw = await gql<{
-      data: { name: string; values: { value: number; end_time: string }[] }[];
-    }>(`${igId}/insights`, pageToken, {
-      metric: "reach,follower_count",
-      period: "day",
-      since: String(since),
-      until: String(until),
-    });
+      // Current period daily: reach + follower_count
+      gql<{ data: { name: string; values: { value: number; end_time: string }[] }[] }>(
+        `${igId}/insights`, pageToken, {
+          metric: "reach,follower_count",
+          period: "day",
+          since: String(since),
+          until: String(until),
+        }
+      ),
 
+      // Current period aggregates
+      gql<{ data: { name: string; total_value: { value: number } }[] }>(
+        `${igId}/insights`, pageToken, {
+          metric: "accounts_engaged,profile_views,total_interactions",
+          metric_type: "total_value",
+          period: "day",
+          since: String(since),
+          until: String(until),
+        }
+      ),
+
+      // Previous period daily: reach + follower_count
+      gql<{ data: { name: string; values: { value: number; end_time: string }[] }[] }>(
+        `${igId}/insights`, pageToken, {
+          metric: "reach,follower_count",
+          period: "day",
+          since: String(prevSince),
+          until: String(prevUntil),
+        }
+      ),
+
+      // Previous period aggregates
+      gql<{ data: { name: string; total_value: { value: number } }[] }>(
+        `${igId}/insights`, pageToken, {
+          metric: "accounts_engaged,profile_views,total_interactions",
+          metric_type: "total_value",
+          period: "day",
+          since: String(prevSince),
+          until: String(prevUntil),
+        }
+      ),
+
+      // Reach breakdown by follow_type (followers vs non-followers)
+      gql<{
+        data: {
+          name: string;
+          total_value: {
+            value: number;
+            breakdowns: {
+              dimension_keys: string[];
+              results: { dimension_values: string[]; value: number }[];
+            }[];
+          };
+        }[];
+      }>(`${igId}/insights`, pageToken, {
+        metric: "reach",
+        metric_type: "total_value",
+        breakdown: "follow_type",
+        period: "day",
+        since: String(since),
+        until: String(until),
+      }),
+
+      // Recent posts
+      gql<{
+        data: {
+          id: string; caption?: string;
+          media_type: InstagramPost["media_type"];
+          media_url?: string; thumbnail_url?: string;
+          permalink: string; timestamp: string;
+          like_count: number; comments_count: number;
+        }[];
+      }>(`${igId}/media`, pageToken, {
+        fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+        limit: "20",
+      }),
+
+      // Facebook Page
+      gql<{
+        id: string; name: string; fan_count: number;
+        followers_count: number; picture: { data: { url: string } };
+      }>(pageId, pageToken, {
+        fields: "id,name,fan_count,followers_count,picture{url}",
+      }),
+    ]);
+
+    // ── Throw if critical calls failed ────────────────────────────────────
+    if (igProfileRes.status === "rejected") throw igProfileRes.reason;
+    if (igDailyRes.status === "rejected") throw igDailyRes.reason;
+    if (igTotalRes.status === "rejected") throw igTotalRes.reason;
+    if (postsRes.status === "rejected") throw postsRes.reason;
+    if (fbPageRes.status === "rejected") throw fbPageRes.reason;
+
+    // ── Process current period ─────────────────────────────────────────────
+    const igProfile = igProfileRes.value;
     const igDailyMap: Record<string, { value: number; end_time: string }[]> = {};
-    for (const m of igDailyRaw.data) igDailyMap[m.name] = m.values;
-
-    // ── Instagram aggregate totals (30d) ──────────────────────────────────
-    const igTotalRaw = await gql<{
-      data: { name: string; total_value: { value: number } }[];
-    }>(`${igId}/insights`, pageToken, {
-      metric: "accounts_engaged,profile_views,total_interactions",
-      metric_type: "total_value",
-      period: "day",
-      since: String(since),
-      until: String(until),
-    });
+    for (const m of igDailyRes.value.data) igDailyMap[m.name] = m.values;
 
     const igTotals: Record<string, number> = {};
-    for (const m of igTotalRaw.data) igTotals[m.name] = m.total_value?.value ?? 0;
+    for (const m of igTotalRes.value.data) igTotals[m.name] = m.total_value?.value ?? 0;
 
-    // ── Instagram Recent Posts ─────────────────────────────────────────────
-    const postsRaw = await gql<{
-      data: {
-        id: string; caption?: string;
-        media_type: InstagramPost["media_type"];
-        media_url?: string; thumbnail_url?: string;
-        permalink: string; timestamp: string;
-        like_count: number; comments_count: number;
-      }[];
-    }>(`${igId}/media`, pageToken, {
-      fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
-      limit: "20",
-    });
+    // ── Process previous period ────────────────────────────────────────────
+    let previousPeriod: InstagramInsightsPrev | undefined;
+    if (igPrevDailyRes.status === "fulfilled" && igPrevTotalRes.status === "fulfilled") {
+      const prevDailyMap: Record<string, { value: number; end_time: string }[]> = {};
+      for (const m of igPrevDailyRes.value.data) prevDailyMap[m.name] = m.values;
 
-    // Fetch per-post insights concurrently
-    const postsWithInsights = await withConcurrency(postsRaw.data, 6, async (post) => {
+      const prevTotals: Record<string, number> = {};
+      for (const m of igPrevTotalRes.value.data) prevTotals[m.name] = m.total_value?.value ?? 0;
+
+      previousPeriod = {
+        reach_total: (prevDailyMap.reach ?? []).reduce((s, v) => s + v.value, 0),
+        follower_growth: (prevDailyMap.follower_count ?? []).reduce((s, v) => s + v.value, 0),
+        accounts_engaged: prevTotals.accounts_engaged ?? 0,
+        profile_views: prevTotals.profile_views ?? 0,
+        total_interactions: prevTotals.total_interactions ?? 0,
+      };
+    }
+
+    // ── Process follower/non-follower reach breakdown ──────────────────────
+    let reachFollowers: number | undefined;
+    let reachNonFollowers: number | undefined;
+    if (igReachBreakRes.status === "fulfilled") {
+      const reachMetric = igReachBreakRes.value.data.find((d) => d.name === "reach");
+      const breakdownResults = reachMetric?.total_value?.breakdowns?.[0]?.results ?? [];
+      for (const r of breakdownResults) {
+        if (r.dimension_values[0] === "FOLLOWER") reachFollowers = r.value;
+        if (r.dimension_values[0] === "NON_FOLLOWER") reachNonFollowers = r.value;
+      }
+    }
+
+    // ── Phase 2: per-post insights ─────────────────────────────────────────
+    const postsWithInsights = await withConcurrency(postsRes.value.data, 6, async (post) => {
       try {
         const ins = await gql<{
           data: { name: string; values: { value: number }[] }[];
@@ -150,14 +254,6 @@ export async function GET() {
       .sort((a, b) => (b.reach ?? b.like_count) - (a.reach ?? a.like_count))
       .slice(0, 9);
 
-    // ── Facebook Page ──────────────────────────────────────────────────────
-    const fbPage = await gql<{
-      id: string; name: string; fan_count: number;
-      followers_count: number; picture: { data: { url: string } };
-    }>(pageId, pageToken, {
-      fields: "id,name,fan_count,followers_count,picture{url}",
-    });
-
     const payload: MetaAnalyticsData = {
       instagram: {
         profile: igProfile,
@@ -167,12 +263,15 @@ export async function GET() {
           accounts_engaged: igTotals.accounts_engaged ?? 0,
           profile_views: igTotals.profile_views ?? 0,
           total_interactions: igTotals.total_interactions ?? 0,
+          previousPeriod,
+          reachFollowers,
+          reachNonFollowers,
         },
         topPosts,
         recentPosts: postsWithInsights,
       },
       facebook: {
-        page: fbPage,
+        page: fbPageRes.value,
       },
       tokenExpiresAt: tokenExpiry,
       fetchedAt: new Date().toISOString(),

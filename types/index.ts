@@ -103,12 +103,33 @@ export interface InstagramProfile {
   biography: string;
 }
 
+export interface InstagramInsightsPrev {
+  reach_total: number;
+  follower_growth: number;
+  accounts_engaged: number;
+  profile_views: number;
+  total_interactions: number;
+}
+
 export interface InstagramInsights {
   reach: MetaInsightValue[];          // per-day values
   follower_count: MetaInsightValue[]; // per-day new followers
   accounts_engaged: number;           // 30d total
   profile_views: number;              // 30d total
   total_interactions: number;         // 30d total
+  previousPeriod?: InstagramInsightsPrev;
+  reachFollowers?: number;            // 30d reach from followers
+  reachNonFollowers?: number;         // 30d reach from non-followers
+}
+
+export interface AIAnalyticsInsight {
+  summary: string;
+  whatsWorking: string[];
+  areasToImprove: string[];
+  contentRecommendations: string[];
+  actionItems: string[];
+  topContentType: string;
+  bestPerformingTheme: string;
 }
 
 export interface InstagramPost {
