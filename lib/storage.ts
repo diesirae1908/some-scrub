@@ -1,12 +1,13 @@
 "use client";
 
-import type { BrandProfile, BookmarkedVideo, SearchSession } from "@/types";
+import type { BrandProfile, BookmarkedVideo, SearchSession, SavedBrief, BriefStatus } from "@/types";
 
 const KEYS = {
   BRAND_PROFILE: "atome_brand_profile",
   BOOKMARKS: "atome_bookmarks",
   SESSIONS: "atome_sessions",
   API_KEY: "atome_anthropic_key",
+  BRIEFS: "atome_briefs",
 };
 
 // API Key — prefers build-time env var, falls back to localStorage
@@ -85,4 +86,35 @@ export function saveSession(session: SearchSession): void {
   // Keep last 10 sessions
   const trimmed = sessions.slice(0, 10);
   localStorage.setItem(KEYS.SESSIONS, JSON.stringify(trimmed));
+}
+
+// Saved Briefs
+export function getSavedBriefs(): SavedBrief[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(KEYS.BRIEFS);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export function saveBrief(brief: SavedBrief): void {
+  const briefs = getSavedBriefs().filter((b) => b.id !== brief.id);
+  briefs.unshift(brief);
+  localStorage.setItem(KEYS.BRIEFS, JSON.stringify(briefs));
+}
+
+export function updateBriefStatus(
+  id: string,
+  status: BriefStatus,
+  extra?: Partial<SavedBrief>
+): void {
+  const briefs = getSavedBriefs().map((b) =>
+    b.id === id
+      ? { ...b, ...extra, status, updatedAt: new Date().toISOString() }
+      : b
+  );
+  localStorage.setItem(KEYS.BRIEFS, JSON.stringify(briefs));
+}
+
+export function deleteSavedBrief(id: string): void {
+  const briefs = getSavedBriefs().filter((b) => b.id !== id);
+  localStorage.setItem(KEYS.BRIEFS, JSON.stringify(briefs));
 }

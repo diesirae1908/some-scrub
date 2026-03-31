@@ -273,6 +273,7 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
         <BriefModal
           brief={brief}
           video={video}
+          analysis={analysis ?? undefined}
           onClose={() => setShowBrief(false)}
         />
       )}

@@ -82,3 +82,24 @@ export interface BookmarkedVideo extends TikTokVideo {
   analysis?: VideoAnalysis;
   brief?: CreativeBrief;
 }
+
+export type BriefStatus = "draft" | "planned" | "in_production" | "posted" | "archived";
+
+export interface SavedBrief {
+  id: string;
+  brief: CreativeBrief;
+  analysis?: VideoAnalysis;
+  video: {
+    id: string;
+    title: string;
+    cover: string;
+    author: { uniqueId: string; nickname: string };
+    stats: { playCount: number; diggCount: number };
+    webVideoUrl: string;
+  };
+  status: BriefStatus;
+  notes: string;
+  plannedDate: string; // ISO date string or ""
+  createdAt: string;
+  updatedAt: string;
+}

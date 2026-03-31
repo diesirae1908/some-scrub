@@ -1,17 +1,52 @@
 "use client";
 
-import { X, Copy, Check } from "lucide-react";
-import { useState } from "react";
-import type { CreativeBrief, TikTokVideo } from "@/types";
+import { X, Copy, Check, BookOpen } from "lucide-react";
+import { useState, useEffect } from "react";
+import type { CreativeBrief, TikTokVideo, VideoAnalysis } from "@/types";
+import { saveBrief, getSavedBriefs } from "@/lib/storage";
+import { generateId } from "@/lib/utils";
 
 interface BriefModalProps {
   brief: CreativeBrief;
   video: TikTokVideo;
+  analysis?: VideoAnalysis;
   onClose: () => void;
 }
 
-export default function BriefModal({ brief, video, onClose }: BriefModalProps) {
+export default function BriefModal({ brief, video, analysis, onClose }: BriefModalProps) {
   const [copied, setCopied] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  // Auto-save when modal opens
+  useEffect(() => {
+    const existing = getSavedBriefs().find(
+      (b) => b.brief.campaignName === brief.campaignName && b.video.id === video.id
+    );
+    if (existing) {
+      setSavedId(existing.id);
+      return;
+    }
+    const id = generateId();
+    saveBrief({
+      id,
+      brief,
+      analysis,
+      video: {
+        id: video.id,
+        title: video.title,
+        cover: video.cover,
+        author: { uniqueId: video.author.uniqueId, nickname: video.author.nickname },
+        stats: { playCount: video.stats.playCount, diggCount: video.stats.diggCount },
+        webVideoUrl: video.webVideoUrl,
+      },
+      status: "draft",
+      notes: "",
+      plannedDate: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setSavedId(id);
+  }, [brief, video, analysis]);
 
   const briefText = `
 CREATIVE BRIEF — ${brief.campaignName}
@@ -118,15 +153,27 @@ Reference Video: ${video.webVideoUrl}
             → View reference video on TikTok
           </a>
 
-          {/* Copy button */}
-          <button
-            onClick={handleCopy}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors hover:opacity-90"
-            style={{ background: "var(--accent-teal)", color: "#000" }}
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? "Copied to clipboard!" : "Copy Brief to Clipboard"}
-          </button>
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={handleCopy}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors hover:opacity-90"
+              style={{ background: "var(--accent-teal)", color: "#000" }}
+            >
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              {copied ? "Copied!" : "Copy Brief"}
+            </button>
+            {savedId && (
+              <a
+                href={`/some-scrub/briefs`}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-colors hover:opacity-90"
+                style={{ background: "var(--bg-input)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              >
+                <BookOpen size={16} />
+                View in Briefs
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
