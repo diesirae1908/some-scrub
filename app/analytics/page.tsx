@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  AtSign,
-  Globe,
   TrendingUp,
   Users,
   Eye,
@@ -17,6 +15,11 @@ import {
   Play,
   BarChart3,
   Layers,
+  AtSign,
+  Globe,
+  UserPlus,
+  MousePointerClick,
+  AlertTriangle,
 } from "lucide-react";
 import type { MetaAnalyticsData, InstagramPost } from "@/types";
 
@@ -26,7 +29,7 @@ function fmt(n: number | undefined): string {
   if (n === undefined || n === null) return "—";
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-  return String(n);
+  return n.toLocaleString();
 }
 
 function pct(a: number | undefined, b: number | undefined): string {
@@ -34,23 +37,25 @@ function pct(a: number | undefined, b: number | undefined): string {
   return ((a / b) * 100).toFixed(2) + "%";
 }
 
-function sumValues(arr: { value: number; end_time: string }[]): number {
+function sumValues(arr: { value: number }[]): number {
   return arr.reduce((s, v) => s + (v.value ?? 0), 0);
 }
 
-function lastN(arr: { value: number; end_time: string }[], n: number) {
-  return arr.slice(-n);
+function avgEngagementRate(posts: InstagramPost[]): string {
+  const withReach = posts.filter((p) => p.reach && p.reach > 0);
+  if (!withReach.length) return "—";
+  const avg =
+    withReach.reduce((s, p) => {
+      const eng = p.like_count + p.comments_count + (p.saved ?? 0) + (p.shares ?? 0);
+      return s + eng / (p.reach ?? 1);
+    }, 0) / withReach.length;
+  return (avg * 100).toFixed(2) + "%";
 }
 
-function avgEngagementRate(posts: InstagramPost[]): string {
-  const withData = posts.filter((p) => p.reach && p.reach > 0);
-  if (!withData.length) return "—";
-  const avg =
-    withData.reduce((s, p) => {
-      const eng = (p.like_count + p.comments_count + (p.saved ?? 0) + (p.shares ?? 0));
-      return s + eng / (p.reach ?? 1);
-    }, 0) / withData.length;
-  return (avg * 100).toFixed(2) + "%";
+function daysUntilExpiry(unixStr: string): number {
+  const exp = parseInt(unixStr, 10);
+  if (!exp) return 999;
+  return Math.floor((exp * 1000 - Date.now()) / 86_400_000);
 }
 
 // ── Mini bar chart (pure SVG, no deps) ───────────────────────────────────────
@@ -60,7 +65,7 @@ function BarChart({
   color = "#ff3b6b",
   height = 80,
 }: {
-  data: { value: number; end_time: string }[];
+  data: { value: number }[];
   color?: string;
   height?: number;
 }) {
@@ -71,19 +76,18 @@ function BarChart({
   return (
     <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
       {data.map((d, i) => {
-        const barH = (d.value / max) * (height - 4);
+        const barH = Math.max((d.value / max) * (height - 4), 1);
         return (
-          <g key={i}>
-            <rect
-              x={i * w + w * 0.1}
-              y={height - barH}
-              width={w * 0.8}
-              height={barH}
-              rx="1"
-              fill={color}
-              opacity="0.85"
-            />
-          </g>
+          <rect
+            key={i}
+            x={i * w + w * 0.1}
+            y={height - barH}
+            width={w * 0.8}
+            height={barH}
+            rx="1"
+            fill={color}
+            opacity="0.85"
+          />
         );
       })}
     </svg>
@@ -139,7 +143,6 @@ function PostCard({ post }: { post: InstagramPost }) {
       className="group rounded-xl overflow-hidden flex flex-col transition-transform hover:-translate-y-0.5"
       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
     >
-      {/* Thumbnail */}
       <div className="relative aspect-square bg-[var(--bg-card-hover)] overflow-hidden">
         {thumb ? (
           <img
@@ -164,28 +167,14 @@ function PostCard({ post }: { post: InstagramPost }) {
           </div>
         )}
       </div>
-
-      {/* Stats row */}
       <div className="px-3 py-2 flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
-        <span className="flex items-center gap-1">
-          <Heart size={11} />
-          {fmt(post.like_count)}
-        </span>
-        <span className="flex items-center gap-1">
-          <MessageCircle size={11} />
-          {fmt(post.comments_count)}
-        </span>
+        <span className="flex items-center gap-1"><Heart size={11} />{fmt(post.like_count)}</span>
+        <span className="flex items-center gap-1"><MessageCircle size={11} />{fmt(post.comments_count)}</span>
         {post.saved !== undefined && (
-          <span className="flex items-center gap-1">
-            <Bookmark size={11} />
-            {fmt(post.saved)}
-          </span>
+          <span className="flex items-center gap-1"><Bookmark size={11} />{fmt(post.saved)}</span>
         )}
         {post.shares !== undefined && (
-          <span className="flex items-center gap-1">
-            <Share2 size={11} />
-            {fmt(post.shares)}
-          </span>
+          <span className="flex items-center gap-1"><Share2 size={11} />{fmt(post.shares)}</span>
         )}
         <ExternalLink size={11} className="ml-auto opacity-40 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -209,34 +198,25 @@ function SetupBanner() {
       </div>
       <h2 className="text-xl font-bold text-white mb-2">Connect Meta Analytics</h2>
       <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
-        Add your Meta credentials to Render environment variables to unlock the Instagram &amp; Facebook dashboard.
+        Add your Meta credentials to Render environment variables to unlock the dashboard.
       </p>
       <div
         className="text-left rounded-xl p-4 text-xs font-mono space-y-1.5 mb-6"
         style={{ background: "var(--bg-card-hover)" }}
       >
-        <div>
-          <span className="text-[#E1306C]">META_PAGE_ACCESS_TOKEN</span>
-          <span className="text-[var(--text-secondary)]"> = &lt;your page token&gt;</span>
-        </div>
-        <div>
-          <span className="text-[#4267B2]">META_PAGE_ID</span>
-          <span className="text-[var(--text-secondary)]"> = &lt;facebook page id&gt;</span>
-        </div>
-        <div>
-          <span className="text-[#9b5de5]">META_INSTAGRAM_BUSINESS_ACCOUNT_ID</span>
-          <span className="text-[var(--text-secondary)]"> = &lt;ig business account id&gt;</span>
-        </div>
+        <div><span className="text-[#E1306C]">META_PAGE_ACCESS_TOKEN</span><span className="text-[var(--text-secondary)]"> = &lt;page token&gt;</span></div>
+        <div><span className="text-[#4267B2]">META_PAGE_ID</span><span className="text-[var(--text-secondary)]"> = 108727358385639</span></div>
+        <div><span className="text-[#9b5de5]">META_INSTAGRAM_BUSINESS_ACCOUNT_ID</span><span className="text-[var(--text-secondary)]"> = 17841447920681761</span></div>
+        <div><span className="text-[#f59e0b]">META_TOKEN_EXPIRES_AT</span><span className="text-[var(--text-secondary)]"> = &lt;unix timestamp&gt;</span></div>
       </div>
       <a
         href="https://dashboard.render.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-80"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white hover:opacity-80 transition-opacity"
         style={{ background: "linear-gradient(135deg, #ff3b6b, #9b5de5)" }}
       >
-        Open Render Dashboard
-        <ExternalLink size={14} />
+        Open Render Dashboard <ExternalLink size={14} />
       </a>
     </div>
   );
@@ -257,10 +237,7 @@ export default function AnalyticsPage() {
     try {
       const res = await fetch("/api/meta");
       const json = await res.json();
-      if (json.missingConfig) {
-        setNotConfigured(true);
-        return;
-      }
+      if (json.missingConfig) { setNotConfigured(true); return; }
       if (!res.ok) throw new Error(json.error ?? "Failed to fetch analytics");
       setData(json as MetaAnalyticsData);
     } catch (e) {
@@ -270,38 +247,28 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // ── Loading ──
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div
-          className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: "var(--border)", borderTopColor: "#ff3b6b" }}
-        />
+        <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: "var(--border)", borderTopColor: "#ff3b6b" }} />
         <p className="text-[var(--text-secondary)] text-sm">Fetching analytics from Meta…</p>
       </div>
     );
   }
 
-  // ── Not configured ──
   if (notConfigured) return <SetupBanner />;
 
-  // ── Error ──
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <AlertCircle size={40} className="text-red-400" />
         <p className="text-white font-medium">Could not load analytics</p>
         <p className="text-[var(--text-secondary)] text-sm max-w-md text-center">{error}</p>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-white"
-          style={{ background: "var(--bg-card-hover)" }}
-        >
+        <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-white"
+          style={{ background: "var(--bg-card-hover)" }}>
           <RefreshCw size={14} /> Retry
         </button>
       </div>
@@ -312,65 +279,50 @@ export default function AnalyticsPage() {
 
   const ig = data.instagram;
   const fb = data.facebook;
-
-  // Aggregated insight totals (last 30 days)
+  const daysLeft = daysUntilExpiry(data.tokenExpiresAt);
   const igReachTotal = sumValues(ig.insights.reach);
-  const igImpTotal = sumValues(ig.insights.impressions);
-  const igPvTotal = sumValues(ig.insights.profile_views);
-  const igEngTotal = sumValues(ig.insights.accounts_engaged);
-  const fbImpTotal = sumValues(fb.insights.page_impressions);
-  const fbEngTotal = sumValues(fb.insights.page_engaged_users);
-  const fbFanAdds = sumValues(fb.insights.page_fan_adds);
-
-  // Chart data — last 28 days
-  const igReachChart = lastN(ig.insights.reach, 28);
-  const igImpChart = lastN(ig.insights.impressions, 28);
-  const fbImpChart = lastN(fb.insights.page_impressions, 28);
+  const igFollowerGrowth = sumValues(ig.insights.follower_count);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Analytics</h1>
           <p className="text-[var(--text-secondary)] text-sm mt-0.5">
-            Last 30 days · Updated{" "}
-            {new Date(data.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            Last 30 days · Updated {new Date(data.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text-secondary)] hover:text-white transition-colors"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-        >
-          <RefreshCw size={13} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {daysLeft <= 14 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-amber-400"
+              style={{ background: "#f59e0b22", border: "1px solid #f59e0b44" }}>
+              <AlertTriangle size={12} />
+              Token expires in {daysLeft} days
+            </div>
+          )}
+          <button onClick={load}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text-secondary)] hover:text-white transition-colors"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <RefreshCw size={13} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Platform tabs */}
       <div className="flex gap-2">
         {(["instagram", "facebook"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+          <button key={tab} onClick={() => setActiveTab(tab)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={
-              activeTab === tab
-                ? {
-                    background: tab === "instagram"
-                      ? "linear-gradient(135deg, #E1306C22, #9b5de522)"
-                      : "#4267B222",
-                    border: `1px solid ${tab === "instagram" ? "#E1306C55" : "#4267B255"}`,
-                    color: tab === "instagram" ? "#E1306C" : "#4267B2",
-                  }
-                : {
-                    background: "var(--bg-card)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                  }
-            }
-          >
+            style={activeTab === tab ? {
+              background: tab === "instagram" ? "#E1306C22" : "#4267B222",
+              border: `1px solid ${tab === "instagram" ? "#E1306C55" : "#4267B255"}`,
+              color: tab === "instagram" ? "#E1306C" : "#4267B2",
+            } : {
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+            }}>
             {tab === "instagram" ? <AtSign size={15} /> : <Globe size={15} />}
             {tab === "instagram" ? "Instagram" : "Facebook"}
           </button>
@@ -381,16 +333,11 @@ export default function AnalyticsPage() {
       {activeTab === "instagram" && (
         <div className="space-y-8">
           {/* Profile strip */}
-          <div
-            className="rounded-xl p-4 flex items-center gap-4"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-          >
+          <div className="rounded-xl p-4 flex items-center gap-4"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
             {ig.profile.profile_picture_url && (
-              <img
-                src={ig.profile.profile_picture_url}
-                alt={ig.profile.name}
-                className="w-12 h-12 rounded-full object-cover"
-              />
+              <img src={ig.profile.profile_picture_url} alt={ig.profile.name}
+                className="w-12 h-12 rounded-full object-cover" />
             )}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-white">{ig.profile.name}</p>
@@ -414,58 +361,36 @@ export default function AnalyticsPage() {
 
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={Users}
-              label="Followers"
-              value={fmt(ig.profile.followers_count)}
-              sub="Total audience"
-              color="#E1306C"
-            />
-            <StatCard
-              icon={Eye}
-              label="Reach"
-              value={fmt(igReachTotal)}
-              sub="Last 30 days"
-              color="#9b5de5"
-            />
-            <StatCard
-              icon={TrendingUp}
-              label="Impressions"
-              value={fmt(igImpTotal)}
-              sub="Last 30 days"
-              color="#ff3b6b"
-            />
-            <StatCard
-              icon={Heart}
-              label="Accounts Engaged"
-              value={fmt(igEngTotal)}
-              sub={`${pct(igEngTotal, igReachTotal)} of reach`}
-              color="#f59e0b"
-            />
+            <StatCard icon={Users} label="Followers" value={fmt(ig.profile.followers_count)} sub="Total audience" color="#E1306C" />
+            <StatCard icon={UserPlus} label="New Followers" value={fmt(igFollowerGrowth)} sub="Last 30 days" color="#10b981" />
+            <StatCard icon={Eye} label="Reach" value={fmt(igReachTotal)} sub="Last 30 days" color="#9b5de5" />
+            <StatCard icon={TrendingUp} label="Interactions" value={fmt(ig.insights.total_interactions)} sub="Last 30 days" color="#ff3b6b" />
           </div>
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              className="rounded-xl p-5"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
+            <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-white">Daily Reach (28d)</p>
+                <p className="text-sm font-medium text-white">Daily Reach (30d)</p>
                 <span className="text-xs text-[var(--text-secondary)]">{fmt(igReachTotal)} total</span>
               </div>
-              <BarChart data={igReachChart} color="#E1306C" height={80} />
+              <BarChart data={ig.insights.reach} color="#E1306C" height={80} />
             </div>
-            <div
-              className="rounded-xl p-5"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
+            <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-white">Daily Impressions (28d)</p>
-                <span className="text-xs text-[var(--text-secondary)]">{fmt(igImpTotal)} total</span>
+                <p className="text-sm font-medium text-white">New Followers per Day (30d)</p>
+                <span className="text-xs text-[var(--text-secondary)]">+{fmt(igFollowerGrowth)} total</span>
               </div>
-              <BarChart data={igImpChart} color="#9b5de5" height={80} />
+              <BarChart data={ig.insights.follower_count} color="#10b981" height={80} />
             </div>
+          </div>
+
+          {/* Secondary KPI cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard icon={Heart} label="Accts Engaged" value={fmt(ig.insights.accounts_engaged)} sub={pct(ig.insights.accounts_engaged, igReachTotal) + " of reach"} color="#f59e0b" />
+            <StatCard icon={MousePointerClick} label="Profile Views" value={fmt(ig.insights.profile_views)} sub="Last 30 days" color="#06b6d4" />
+            <StatCard icon={TrendingUp} label="Engagement Rate" value={avgEngagementRate(ig.recentPosts)} sub="Avg per post (reach)" color="#8b5cf6" />
+            <StatCard icon={Users} label="Following" value={fmt(ig.profile.follows_count)} sub="Accounts followed" color="#64748b" />
           </div>
 
           {/* Top posts */}
@@ -476,61 +401,21 @@ export default function AnalyticsPage() {
                 Top Posts by Reach
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {ig.topPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
+                {ig.topPosts.map((post) => <PostCard key={post.id} post={post} />)}
               </div>
             </div>
           )}
-
-          {/* Extra metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={Eye}
-              label="Profile Views"
-              value={fmt(igPvTotal)}
-              sub="Last 30 days"
-              color="#06b6d4"
-            />
-            <StatCard
-              icon={Users}
-              label="Following"
-              value={fmt(ig.profile.follows_count)}
-              sub="Accounts followed"
-              color="#64748b"
-            />
-            <StatCard
-              icon={Share2}
-              label="Reach/Impressions"
-              value={pct(igReachTotal, igImpTotal)}
-              sub="Unique vs total"
-              color="#10b981"
-            />
-            <StatCard
-              icon={BarChart3}
-              label="Engagement/Reach"
-              value={pct(igEngTotal, igReachTotal)}
-              sub="Last 30 days"
-              color="#f59e0b"
-            />
-          </div>
         </div>
       )}
 
       {/* ── Facebook tab ── */}
       {activeTab === "facebook" && (
         <div className="space-y-8">
-          {/* Page strip */}
-          <div
-            className="rounded-xl p-4 flex items-center gap-4"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-          >
+          <div className="rounded-xl p-4 flex items-center gap-4"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
             {fb.page.picture?.data?.url && (
-              <img
-                src={fb.page.picture.data.url}
-                alt={fb.page.name}
-                className="w-12 h-12 rounded-full object-cover"
-              />
+              <img src={fb.page.picture.data.url} alt={fb.page.name}
+                className="w-12 h-12 rounded-full object-cover" />
             )}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-white">{fb.page.name}</p>
@@ -548,64 +433,16 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={Users}
-              label="Page Likes"
-              value={fmt(fb.page.fan_count)}
-              sub="Total"
-              color="#4267B2"
-            />
-            <StatCard
-              icon={TrendingUp}
-              label="New Likes (30d)"
-              value={fmt(fbFanAdds)}
-              sub="Page fan adds"
-              color="#10b981"
-            />
-            <StatCard
-              icon={Eye}
-              label="Impressions"
-              value={fmt(fbImpTotal)}
-              sub="Last 30 days"
-              color="#9b5de5"
-            />
-            <StatCard
-              icon={Heart}
-              label="Engaged Users"
-              value={fmt(fbEngTotal)}
-              sub={`${pct(fbEngTotal, fbImpTotal)} rate`}
-              color="#f59e0b"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard icon={Users} label="Page Likes" value={fmt(fb.page.fan_count)} sub="Total" color="#4267B2" />
+            <StatCard icon={Users} label="Followers" value={fmt(fb.page.followers_count)} sub="Total" color="#10b981" />
           </div>
 
-          {/* Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              className="rounded-xl p-5"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-white">Daily Impressions (28d)</p>
-                <span className="text-xs text-[var(--text-secondary)]">{fmt(fbImpTotal)} total</span>
-              </div>
-              <BarChart data={fbImpChart} color="#4267B2" height={80} />
-            </div>
-            <div
-              className="rounded-xl p-5"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-white">Engaged Users (28d)</p>
-                <span className="text-xs text-[var(--text-secondary)]">{fmt(fbEngTotal)} total</span>
-              </div>
-              <BarChart
-                data={lastN(fb.insights.page_engaged_users, 28)}
-                color="#f59e0b"
-                height={80}
-              />
-            </div>
+          <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <p className="text-[var(--text-secondary)] text-sm">
+              Facebook Page time-series insights require elevated app permissions.<br />
+              Instagram data above is your primary engagement source.
+            </p>
           </div>
         </div>
       )}

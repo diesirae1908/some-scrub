@@ -104,10 +104,11 @@ export interface InstagramProfile {
 }
 
 export interface InstagramInsights {
-  reach: MetaInsightValue[];
-  impressions: MetaInsightValue[];
-  profile_views: MetaInsightValue[];
-  accounts_engaged: MetaInsightValue[];
+  reach: MetaInsightValue[];          // per-day values
+  follower_count: MetaInsightValue[]; // per-day new followers
+  accounts_engaged: number;           // 30d total
+  profile_views: number;              // 30d total
+  total_interactions: number;         // 30d total
 }
 
 export interface InstagramPost {
@@ -135,13 +136,6 @@ export interface FacebookPage {
   picture: { data: { url: string } };
 }
 
-export interface FacebookInsights {
-  page_impressions: MetaInsightValue[];
-  page_engaged_users: MetaInsightValue[];
-  page_post_engagements: MetaInsightValue[];
-  page_fan_adds: MetaInsightValue[];
-}
-
 export interface MetaAnalyticsData {
   instagram: {
     profile: InstagramProfile;
@@ -151,8 +145,8 @@ export interface MetaAnalyticsData {
   };
   facebook: {
     page: FacebookPage;
-    insights: FacebookInsights;
   };
+  tokenExpiresAt: string; // Unix timestamp string
   fetchedAt: string;
 }
 
