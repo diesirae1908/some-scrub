@@ -122,14 +122,54 @@ export interface InstagramInsights {
   reachNonFollowers?: number;         // 30d reach from non-followers
 }
 
+export type ActionPriority = "high" | "medium" | "low";
+export type ActionStatus = "todo" | "in_progress" | "done" | "skipped";
+export type ActionCategory = "content" | "growth" | "engagement" | "strategy";
+export type ActionOutcome = "excellent" | "good" | "no_change" | "negative" | null;
+
+export interface MetricsSnapshot {
+  followers: number;
+  reach: number;
+  followerGrowth: number;
+  engagementRate: number;
+  snapshotAt: string;
+}
+
+export interface ActionItem {
+  id: string;
+  title: string;
+  description: string;
+  priority: ActionPriority;
+  category: ActionCategory;
+  status: ActionStatus;
+  rationale: string;
+  estimatedImpact: string;
+  dueIn?: string;
+  createdAt: string;
+  completedAt?: string;
+  notes: string;
+  outcome?: ActionOutcome;
+  metricsAtCreation?: MetricsSnapshot;
+  metricsAtCompletion?: MetricsSnapshot;
+}
+
+export interface AIActionItem {
+  title: string;
+  description: string;
+  priority: ActionPriority;
+  category: ActionCategory;
+  rationale: string;
+  estimatedImpact: string;
+  dueIn: string;
+}
+
 export interface AIAnalyticsInsight {
   summary: string;
   whatsWorking: string[];
   areasToImprove: string[];
-  contentRecommendations: string[];
-  actionItems: string[];
   topContentType: string;
   bestPerformingTheme: string;
+  actionPlan: AIActionItem[];
 }
 
 export interface InstagramPost {

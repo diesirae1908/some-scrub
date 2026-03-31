@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { MetaAnalyticsData, InstagramPost, InstagramInsightsPrev } from "@/types";
 
 const GRAPH = "https://graph.facebook.com/v19.0";
@@ -43,7 +43,7 @@ async function withConcurrency<T, R>(
   return results;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { pageToken, pageId, igId, tokenExpiry } = cfg();
 
   if (!pageToken || !pageId || !igId) {
@@ -53,11 +53,12 @@ export async function GET() {
     );
   }
 
+  const days = Math.min(90, Math.max(7, parseInt(req.nextUrl.searchParams.get("days") ?? "30", 10)));
   const now = Math.floor(Date.now() / 1000);
-  const since = now - 30 * 86400;
+  const since = now - days * 86400;
   const until = now;
-  const prevSince = now - 60 * 86400;
-  const prevUntil = now - 30 * 86400;
+  const prevSince = now - 2 * days * 86400;
+  const prevUntil = now - days * 86400;
 
   try {
     // ── Phase 1: all parallel reads ────────────────────────────────────────

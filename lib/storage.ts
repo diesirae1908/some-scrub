@@ -1,6 +1,6 @@
 "use client";
 
-import type { BrandProfile, BookmarkedVideo, SearchSession, SavedBrief, BriefStatus } from "@/types";
+import type { BrandProfile, BookmarkedVideo, SearchSession, SavedBrief, BriefStatus, ActionItem, ActionStatus, ActionOutcome, MetricsSnapshot } from "@/types";
 
 const KEYS = {
   BRAND_PROFILE: "atome_brand_profile",
@@ -8,6 +8,7 @@ const KEYS = {
   SESSIONS: "atome_sessions",
   API_KEY: "atome_anthropic_key",
   BRIEFS: "atome_briefs",
+  ACTION_PLAN: "atome_action_plan",
 };
 
 // API Key — prefers build-time env var, falls back to localStorage
@@ -117,4 +118,47 @@ export function updateBriefStatus(
 export function deleteSavedBrief(id: string): void {
   const briefs = getSavedBriefs().filter((b) => b.id !== id);
   localStorage.setItem(KEYS.BRIEFS, JSON.stringify(briefs));
+}
+
+// Action Plan
+export function getActionItems(): ActionItem[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(KEYS.ACTION_PLAN);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export function saveActionItems(items: ActionItem[]): void {
+  localStorage.setItem(KEYS.ACTION_PLAN, JSON.stringify(items));
+}
+
+export function addActionItems(items: ActionItem[]): void {
+  const existing = getActionItems();
+  // Avoid duplicates by title
+  const newTitles = new Set(items.map((i) => i.title.toLowerCase()));
+  const merged = [...items, ...existing.filter((e) => !newTitles.has(e.title.toLowerCase()))];
+  saveActionItems(merged);
+}
+
+export function updateActionItem(id: string, patch: Partial<ActionItem>): void {
+  const items = getActionItems().map((item) =>
+    item.id === id ? { ...item, ...patch } : item
+  );
+  saveActionItems(items);
+}
+
+export function updateActionStatus(
+  id: string,
+  status: ActionStatus,
+  outcome?: ActionOutcome,
+  metricsAtCompletion?: MetricsSnapshot
+): void {
+  const patch: Partial<ActionItem> = { status };
+  if (status === "done") patch.completedAt = new Date().toISOString();
+  if (outcome !== undefined) patch.outcome = outcome;
+  if (metricsAtCompletion) patch.metricsAtCompletion = metricsAtCompletion;
+  updateActionItem(id, patch);
+}
+
+export function deleteActionItem(id: string): void {
+  saveActionItems(getActionItems().filter((i) => i.id !== id));
 }
