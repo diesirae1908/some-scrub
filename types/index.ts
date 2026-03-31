@@ -85,6 +85,77 @@ export interface BookmarkedVideo extends TikTokVideo {
 
 export type BriefStatus = "draft" | "planned" | "in_production" | "posted" | "archived";
 
+// ── Meta / Instagram Analytics ──────────────────────────────────────────────
+
+export interface MetaInsightValue {
+  value: number;
+  end_time: string;
+}
+
+export interface InstagramProfile {
+  id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+  followers_count: number;
+  follows_count: number;
+  media_count: number;
+  biography: string;
+}
+
+export interface InstagramInsights {
+  reach: MetaInsightValue[];
+  impressions: MetaInsightValue[];
+  profile_views: MetaInsightValue[];
+  accounts_engaged: MetaInsightValue[];
+}
+
+export interface InstagramPost {
+  id: string;
+  caption: string;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "REELS";
+  media_url: string;
+  thumbnail_url?: string;
+  permalink: string;
+  timestamp: string;
+  like_count: number;
+  comments_count: number;
+  reach?: number;
+  impressions?: number;
+  saved?: number;
+  shares?: number;
+  plays?: number;
+}
+
+export interface FacebookPage {
+  id: string;
+  name: string;
+  fan_count: number;
+  followers_count: number;
+  picture: { data: { url: string } };
+}
+
+export interface FacebookInsights {
+  page_impressions: MetaInsightValue[];
+  page_engaged_users: MetaInsightValue[];
+  page_post_engagements: MetaInsightValue[];
+  page_fan_adds: MetaInsightValue[];
+}
+
+export interface MetaAnalyticsData {
+  instagram: {
+    profile: InstagramProfile;
+    insights: InstagramInsights;
+    topPosts: InstagramPost[];
+    recentPosts: InstagramPost[];
+  };
+  facebook: {
+    page: FacebookPage;
+    insights: FacebookInsights;
+  };
+  fetchedAt: string;
+}
+
 export interface SavedBrief {
   id: string;
   brief: CreativeBrief;

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bookmark, Settings, FileText } from "lucide-react";
+import { Search, Bookmark, Settings, FileText, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", label: "Search", icon: Search },
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   { href: "/briefs", label: "Briefs", icon: FileText },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/profile", label: "Brand Profile", icon: Settings },
 ];
 
