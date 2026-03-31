@@ -199,7 +199,7 @@ export default function HomePage() {
           {loading ? (
             <>
               <Loader2 size={16} className="spinner" />
-              Scraping TikTok for trending videos...
+              Fetching videos &amp; thumbnails... (~20s)
             </>
           ) : (
             <>

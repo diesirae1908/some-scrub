@@ -6,15 +6,47 @@ import { extractHashtags } from "@/lib/utils";
 const TIKWM_BASE = "https://www.tikwm.com";
 const PROXY = "https://api.allorigins.win/raw?url=";
 
-function absoluteUrl(path: string): string {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `${TIKWM_BASE}${path}`;
+function proxied(url: string) {
+  return `${PROXY}${encodeURIComponent(url)}`;
+}
+
+/** Resolve the real TikTok CDN cover URL for a single video */
+async function fetchCoverUrl(video: TikTokVideo): Promise<string> {
+  try {
+    const apiUrl = `${TIKWM_BASE}/api/?url=${encodeURIComponent(video.webVideoUrl)}`;
+    const res = await fetch(proxied(apiUrl), { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return "";
+    const data = await res.json();
+    return data?.data?.cover || data?.data?.origin_cover || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Run async tasks with a max concurrency to avoid hammering the proxy */
+async function withConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i]);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
 }
 
 export async function searchTikTok(
   keyword: string,
-  count: number,
+  count: number
 ): Promise<TikTokVideo[]> {
   const params = new URLSearchParams({
     keywords: keyword.trim(),
@@ -24,32 +56,26 @@ export async function searchTikTok(
     hd: "1",
   });
 
-  const targetUrl = `${TIKWM_BASE}/api/feed/search?${params}`;
-  const proxyUrl = `${PROXY}${encodeURIComponent(targetUrl)}`;
+  const searchUrl = `${TIKWM_BASE}/api/feed/search?${params}`;
+  const res = await fetch(proxied(searchUrl));
 
-  const response = await fetch(proxyUrl);
+  if (!res.ok) throw new Error(`TikTok search failed (${res.status})`);
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch TikTok data (${response.status})`);
-  }
+  const data = await res.json();
+  if (!data?.data?.videos?.length) return [];
 
-  const data = await response.json();
-
-  if (!data?.data?.videos?.length) {
-    return [];
-  }
-
-  return data.data.videos.map(
+  // Build initial video objects (cover is empty — will be filled below)
+  const videos: TikTokVideo[] = data.data.videos.map(
     (v: RawVideo): TikTokVideo => ({
       id: v.video_id ?? v.id ?? "",
       title: v.title || v.desc || "",
-      cover: absoluteUrl(v.cover || v.origin_cover || ""),
-      play: absoluteUrl(v.play || ""),
+      cover: "", // resolved below
+      play: "",
       author: {
         id: v.author?.id || "",
         uniqueId: v.author?.unique_id || v.author?.uniqueId || "",
         nickname: v.author?.nickname || "",
-        avatarThumb: absoluteUrl(v.author?.avatar || v.author?.avatarThumb || ""),
+        avatarThumb: "",
       },
       stats: {
         playCount: v.play_count || v.statistics?.playCount || 0,
@@ -63,6 +89,10 @@ export async function searchTikTok(
       webVideoUrl: `https://www.tiktok.com/@${v.author?.unique_id ?? ""}/video/${v.video_id ?? v.id ?? ""}`,
     })
   );
+
+  // Fetch CDN cover URLs with concurrency=4 to avoid proxy overload
+  const covers = await withConcurrency(videos, 4, fetchCoverUrl);
+  return videos.map((v, i) => ({ ...v, cover: covers[i] || "" }));
 }
 
 interface RawVideo {

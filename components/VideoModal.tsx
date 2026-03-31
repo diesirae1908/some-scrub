@@ -26,7 +26,6 @@ import {
 } from "@/lib/storage";
 import { analyzeVideo, generateBrief } from "@/lib/claude-client";
 import BriefModal from "./BriefModal";
-import LazyThumbnail from "./LazyThumbnail";
 
 interface VideoModalProps {
   video: TikTokVideo | null;
@@ -134,13 +133,18 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
             {/* Header */}
             <div className="flex gap-4">
               {/* Thumbnail */}
-              <div className="relative w-28 h-36 rounded-xl overflow-hidden flex-shrink-0">
-                <LazyThumbnail
-                  videoId={video.id}
-                  authorId={video.author.uniqueId}
-                  alt={video.title}
-                  duration={0}
-                />
+              <div
+                className="relative w-28 h-36 rounded-xl overflow-hidden flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #1a1d2e, #252840)" }}
+              >
+                {video.cover ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={video.cover} alt={video.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-2xl opacity-30">🎬</span>
+                  </div>
+                )}
               </div>
 
               {/* Info */}
